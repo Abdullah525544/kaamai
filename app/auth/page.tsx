@@ -171,7 +171,7 @@ export default function AuthPage() {
                         {isLogin ? "Welcome back" : (role === "worker" ? `Worker Signup (${step}/3)` : "Create account")}
                     </h1>
                     <p className="text-sm text-[#6B7280]">
-                        {isLogin ? "Sign in to your KaamAI account" : (role === "worker" ? "Set up your professional profile" : "Join Pakistan&apos;s service marketplace")}
+                        {isLogin ? "Sign in to your KaamAI account" : (role === "worker" ? "Set up your professional profile" : "Join Pakistan's service marketplace")}
                     </p>
                 </div>
 
@@ -359,7 +359,7 @@ export default function AuthPage() {
                 </div>
 
                 <p className="text-center text-xs text-[#9CA3AF] mt-6">
-                    {isLogin ? "Don&apos;t have an account? " : "Already have an account? "}
+                    {isLogin ? "Don't have an account? " : "Already have an account? "}
                     <button onClick={() => { setIsLogin(!isLogin); setStep(1); setError(""); }} className="text-[#5B4DFF] font-semibold hover:underline">
                         {isLogin ? "Sign Up" : "Sign In"}
                     </button>
