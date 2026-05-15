@@ -418,7 +418,7 @@ export default function WorkerDashboard() {
                                                                         </div>
                                                                     ))
                                                                 ) : (
-                                                                    <p className="text-sm text-[#4B5563] italic">"{b.reasoning}"</p>
+                                                                    <p className="text-sm text-[#4B5563] italic">&quot;{b.reasoning}&quot;</p>
                                                                 )}
                                                             </div>
                                                         </div>

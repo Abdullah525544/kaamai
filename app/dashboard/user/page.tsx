@@ -464,7 +464,7 @@ export default function UserDashboard() {
                                                                                 <span className="flex items-center gap-1 text-sm text-[#F59E0B] font-black"><Star className="w-4 h-4 fill-current" /> {w.rating}</span>
                                                                                 <span className="flex items-center gap-1 text-sm text-[#6B7280] font-medium"><MapPin className="w-4 h-4" /> {w.area || "Nearby"}</span>
                                                                                 <span className="flex items-center gap-1 text-sm text-[#10B981] font-bold"><Zap className="w-4 h-4" /> {Math.floor(Math.random() * 5) + 1}km</span>
-                                                                                <span className="text-sm text-[#5B4DFF] font-black italic">"{w.primaryReason}"</span>
+                                                                                <span className="text-sm text-[#5B4DFF] font-black italic">&quot;{w.primaryReason}&quot;</span>
                                                                             </div>
                                                                         </div>
                                                                         {i === 0 && (
