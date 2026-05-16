@@ -34,9 +34,14 @@ export default function UserDashboard() {
     const intentCache = useRef<{ [key: string]: any }>({});
 
     useEffect(() => {
+        let channel: any;
+
         const init = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) { router.push("/auth"); return; }
+            if (!session) {
+                router.push("/auth");
+                return;
+            }
             setUser(session.user);
             const { data: p } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
             if (p) setProfile(p);
@@ -44,15 +49,14 @@ export default function UserDashboard() {
             setLoading(false);
 
             // Supabase Realtime: subscribe to booking updates for this user
-            const channel = supabase
-                .channel('booking-updates')
+            channel = supabase
+                .channel(`booking-updates-${session.user.id}`)
                 .on('postgres_changes', {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'bookings',
                     filter: `user_id=eq.${session.user.id}`
                 }, (payload: any) => {
-                    // Update the specific booking in state instantly
                     setBookings(prev => prev.map(b =>
                         b.id === payload.new.id ? { ...b, ...payload.new } : b
                     ));
@@ -74,13 +78,15 @@ export default function UserDashboard() {
                     setBookings(prev => prev.filter(b => b.id !== payload.old.id));
                 })
                 .subscribe();
-
-            // Cleanup on unmount
-            return () => {
-                supabase.removeChannel(channel);
-            };
         };
+
         init();
+
+        return () => {
+            if (channel) {
+                supabase.removeChannel(channel);
+            }
+        };
     }, [router]);
 
     const fetchBookings = async () => {
