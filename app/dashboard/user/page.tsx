@@ -244,25 +244,20 @@ export default function UserDashboard() {
     const confirmBooking = async (worker: any) => {
         setProcessing(true);
         try {
-            // Use the cached intent to save an API request
-            const intentData = extractedIntent || {};
+            const bookRes = await fetch("/api/book", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    selectedWorker: worker,
+                    userRequest: requestText,
+                    reasoning: fullReasoning?.selectedReasons?.[0] || "AI Match",
+                    extractedIntent: extractedIntent,
+                    userId: user.id
+                })
+            });
 
-            const { error } = await supabase.from("bookings").insert([{
-                user_id: user.id,
-                worker_id: worker.id,
-                assigned_worker_id: worker.id,
-                user_request: requestText,
-                service: intentData.required_category || "Service",
-                required_category: intentData.required_category,
-                location: intentData.location,
-                scheduled_time: intentData.scheduledTime,
-                status: 'pending',
-                reasoning: fullReasoning?.selectedReasons?.[0] || "AI Match",
-            }]);
-
-            if (error) {
-                console.error("Booking error:", error);
-                alert("Failed to book worker. Please try again.");
+            if (!bookRes.ok) {
+                alert("Booking failed. Please try again.");
                 return;
             }
 

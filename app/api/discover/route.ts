@@ -13,39 +13,48 @@ export async function POST(req: Request) {
 
         console.log('Searching for:', service, searchCity, searchArea);
 
-        // Step 2: Query for workers with flexible matching
-        // Using workers table as it now contains the mock data
-        let query = supabase
+        // Step 2: Query BOTH tables and merge results
+        // Query 1: workers table (mock data)
+        const workersQuery = await supabase
             .from("workers")
             .select("*")
             .eq("available", true)
             .ilike("service_category", `%${service}%`);
 
-        // If location/city provided, add filters
-        if (searchArea) {
-            query = query.ilike("area", `%${searchArea}%`);
+        // Query 2: profiles table (real signups)
+        const profilesQuery = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("role", "worker")
+            .eq("available", true)
+            .ilike("service_category", `%${service}%`);
+
+        if (workersQuery.error) throw workersQuery.error;
+        if (profilesQuery.error) throw profilesQuery.error;
+
+        // Merge both results
+        const allWorkers = [
+            ...(workersQuery.data || []),
+            ...(profilesQuery.data || [])
+        ];
+
+        // Step 3: Apply location filter on merged results
+        let items = allWorkers;
+        if (searchArea || searchCity) {
+            items = items.filter(w =>
+                (searchArea && w.area?.toLowerCase().includes(searchArea)) ||
+                (searchCity && w.city?.toLowerCase().includes(searchCity))
+            );
         }
-        if (searchCity) {
-            query = query.ilike("city", `%${searchCity}%`);
+
+        // Fallback: if 0 results, return all matching service
+        if (items.length === 0) {
+            items = allWorkers;
         }
 
-        let { data: items, error } = await query;
-        if (error) throw error;
-
-        // Step 4: Tiered fallback - search by service only if no location match
-        if ((!items || items.length === 0) && (searchArea || searchCity)) {
-            console.log(`[DISCOVERY] No workers in ${searchArea || searchCity}, broadening to service only`);
-            const fallbackQuery = await supabase
-                .from("workers")
-                .select("*")
-                .eq("available", true)
-                .ilike("service_category", `%${service}%`);
-
-            if (fallbackQuery.error) throw fallbackQuery.error;
-            items = fallbackQuery.data;
-        }
-
-        console.log('Results found:', items?.length || 0);
+        console.log('[DISCOVERY] Workers table:', workersQuery.data?.length || 0);
+        console.log('[DISCOVERY] Profiles table:', profilesQuery.data?.length || 0);
+        console.log('[DISCOVERY] Total merged:', items.length);
 
         if (!items || items.length === 0) {
             return NextResponse.json({

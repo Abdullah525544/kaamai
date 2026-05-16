@@ -14,6 +14,7 @@ export async function POST(req: Request) {
         console.log(`[BOOKING AGENT] Creating booking for ${selectedWorker.name || selectedWorker.id}`);
 
         const insertData = {
+            user_id: body.userId,              // ADD THIS
             worker_id: selectedWorker.id,
             assigned_worker_id: selectedWorker.id, // Fallback to same ID, though logic may vary
             user_request: userRequest,
