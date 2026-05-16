@@ -21,15 +21,24 @@ export async function POST(req: Request) {
         const response = await result.response;
         const extractedText = response.text();
 
-        // Attempt to parse JSON from response (handling potential markdown blocks)
-        let jsonString = extractedText.replace(/```json|```/g, "").trim();
-        const extractedData = JSON.parse(jsonString);
+        console.log(`[INTENT AGENT] Raw Response: ${extractedText}`);
 
-        console.log(`[INTENT AGENT] Extracted: ${JSON.stringify(extractedData)}`);
+        // Robust JSON extraction
+        let extractedData;
+        try {
+            // Find the first { and last } to extract JSON block if model wrapped it in text
+            const jsonMatch = extractedText.match(/\{[\s\S]*\}/);
+            const jsonString = jsonMatch ? jsonMatch[0] : extractedText;
+            extractedData = JSON.parse(jsonString);
+        } catch (parseError) {
+            console.error("[INTENT AGENT] JSON Parse Error. Raw text:", extractedText);
+            throw new Error("Failed to parse AI response");
+        }
 
+        console.log(`[INTENT AGENT] Extracted Data: ${JSON.stringify(extractedData)}`);
         return NextResponse.json(extractedData);
-    } catch (error) {
-        console.error("[INTENT AGENT] Error:", error);
-        return NextResponse.json({ error: "Failed to process intent" }, { status: 500 });
+    } catch (error: any) {
+        console.error("[INTENT AGENT] Critical Error:", error.message || error);
+        return NextResponse.json({ error: "Failed to process intent", detail: error.message }, { status: 500 });
     }
 }

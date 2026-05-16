@@ -139,7 +139,11 @@ export default function UserDashboard() {
     };
 
     const handleSearch = async () => {
-        if (!requestText.trim()) return;
+        console.log("[handleSearch] Starting search process...");
+        if (!requestText.trim()) {
+            console.log("[handleSearch] Empty request text, aborting.");
+            return;
+        }
         setProcessing(true);
         setBookingSteps(1); // Step 1: Understanding request
         setFullReasoning(null);
@@ -147,6 +151,7 @@ export default function UserDashboard() {
 
         try {
             setPipelineError(null);
+            console.log("[handleSearch] Calling /api/intent...");
             // STEP 1: Understanding request
             const intentRes = await fetch("/api/intent", {
                 method: "POST",
@@ -154,8 +159,14 @@ export default function UserDashboard() {
                 body: JSON.stringify({ text: requestText })
             });
 
-            if (!intentRes.ok) throw new Error("Zarurat samajhne mein masla hua. Dobara koshish karein.");
+            console.log("[handleSearch] Intent API response status:", intentRes.status);
+            if (!intentRes.ok) {
+                const errorData = await intentRes.json().catch(() => ({}));
+                console.error("[handleSearch] Intent API failed:", errorData);
+                throw new Error("Zarurat samajhne mein masla hua. Dobara koshish karein.");
+            }
             const intentData = await intentRes.json();
+            console.log("[handleSearch] Intent extracted:", intentData);
             setExtractedIntent(intentData);
 
             // Artificial delay for animation feel
@@ -163,14 +174,21 @@ export default function UserDashboard() {
             setBookingSteps(2); // Step 2: Finding workers
 
             // STEP 2: Finding workers
+            console.log("[handleSearch] Calling /api/discover...");
             const discoverRes = await fetch("/api/discover", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ intent: intentData })
             });
 
-            if (!discoverRes.ok) throw new Error("Workers dhoondne mein masla hua.");
+            console.log("[handleSearch] Discover API response status:", discoverRes.status);
+            if (!discoverRes.ok) {
+                const errorData = await discoverRes.json().catch(() => ({}));
+                console.error("[handleSearch] Discover API failed:", errorData);
+                throw new Error("Workers dhoondne mein masla hua.");
+            }
             const discoverData = await discoverRes.json();
+            console.log("[handleSearch] Discovery results:", discoverData);
 
             // Save discovery message if any
             const discoMsg = discoverData.message || "";
@@ -184,14 +202,17 @@ export default function UserDashboard() {
             setBookingSteps(3); // Step 3: AI ranking
 
             // STEP 3: AI ranking
+            console.log("[handleSearch] Calling /api/rank...");
             const rankRes = await fetch("/api/rank", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ workers: discoverData.workers, userRequest: requestText, extractedIntent: intentData })
             });
 
+            console.log("[handleSearch] Rank API response status:", rankRes.status);
             if (rankRes.ok) {
                 const rankData = await rankRes.json();
+                console.log("[handleSearch] Ranking results:", rankData);
                 setFullReasoning(rankData.reasoning);
                 setTopWorkers(rankData.topWorkers || []);
                 setConfidenceScore(rankData.confidenceScore);
@@ -200,14 +221,16 @@ export default function UserDashboard() {
                     setFullReasoning({ ...rankData.reasoning, discoveryMessage: discoMsg });
                 }
             } else {
+                const errorData = await rankRes.json().catch(() => ({}));
+                console.warn("[handleSearch] Ranking failed, using fallback list:", errorData);
                 // If ranking fails (e.g. 429), we already have the unranked workers from Step 2
-                console.warn("Ranking failed, using fallback list");
                 setFullReasoning({ selectedReasons: ["AI ranking busy, showing all available matches."] });
                 setConfidenceScore(50);
             }
 
             await new Promise(r => setTimeout(r, 800));
             setBookingSteps(4); // Step 4: Booking ready
+            console.log("[handleSearch] Search process completed successfully.");
 
         } catch (e: any) {
             console.error(e);

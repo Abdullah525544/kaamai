@@ -34,9 +34,18 @@ export async function POST(req: Request) {
     const response = await result.response;
     const extractedText = response.text();
 
-    // Attempt to parse JSON from response
-    let jsonString = extractedText.replace(/```json|```/g, "").trim();
-    const rankingResult = JSON.parse(jsonString);
+    console.log(`[RANKING AGENT] Raw Response: ${extractedText}`);
+
+    // Robust JSON extraction
+    let rankingResult;
+    try {
+      const jsonMatch = extractedText.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : extractedText;
+      rankingResult = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error("[RANKING AGENT] JSON Parse Error. Raw text:", extractedText);
+      throw new Error("Failed to parse AI ranking response");
+    }
 
     // Ensure we preserve the original worker objects including UUIDs
     if (rankingResult.topWorkers && Array.isArray(rankingResult.topWorkers)) {
