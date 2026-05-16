@@ -8,7 +8,7 @@ import {
     Home, PlusCircle, Clock, User, LogOut, CheckCircle2,
     Sparkles, Loader2, Bot, Menu, X, Search, Wrench,
     Star, MapPin, CalendarCheck, TrendingUp, ArrowRight, BadgeCheck, Trash2,
-    Zap
+    Zap, RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 
@@ -30,6 +30,7 @@ export default function UserDashboard() {
     const [confidenceScore, setConfidenceScore] = useState(0);
     const [bookings, setBookings] = useState<any[]>([]);
     const [pipelineError, setPipelineError] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
     const intentCache = useRef<{ [key: string]: any }>({});
 
     useEffect(() => {
@@ -41,6 +42,43 @@ export default function UserDashboard() {
             if (p) setProfile(p);
             fetchBookings();
             setLoading(false);
+
+            // Supabase Realtime: subscribe to booking updates for this user
+            const channel = supabase
+                .channel('booking-updates')
+                .on('postgres_changes', {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'bookings',
+                    filter: `user_id=eq.${session.user.id}`
+                }, (payload: any) => {
+                    // Update the specific booking in state instantly
+                    setBookings(prev => prev.map(b =>
+                        b.id === payload.new.id ? { ...b, ...payload.new } : b
+                    ));
+                })
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'bookings',
+                    filter: `user_id=eq.${session.user.id}`
+                }, (payload: any) => {
+                    setBookings(prev => [payload.new, ...prev]);
+                })
+                .on('postgres_changes', {
+                    event: 'DELETE',
+                    schema: 'public',
+                    table: 'bookings',
+                    filter: `user_id=eq.${session.user.id}`
+                }, (payload: any) => {
+                    setBookings(prev => prev.filter(b => b.id !== payload.old.id));
+                })
+                .subscribe();
+
+            // Cleanup on unmount
+            return () => {
+                supabase.removeChannel(channel);
+            };
         };
         init();
     }, [router]);
@@ -48,6 +86,12 @@ export default function UserDashboard() {
     const fetchBookings = async () => {
         const { data } = await supabase.from("bookings").select("*, workers(name)").order("created_at", { ascending: false });
         if (data) setBookings(data);
+    };
+
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        await fetchBookings();
+        setTimeout(() => setRefreshing(false), 500);
     };
 
     const handleLogout = async () => {
@@ -498,9 +542,16 @@ export default function UserDashboard() {
                         {/* MY BOOKINGS */}
                         {activeTab === "bookings" && (
                             <motion.div key="bookings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                                <div className="mb-8">
-                                    <h1 className="text-2xl md:text-3xl font-black text-[#111827]">My Bookings</h1>
-                                    <p className="text-[#6B7280] mt-1">{bookings.length} booking{bookings.length !== 1 ? "s" : ""} found</p>
+                                <div className="mb-8 flex items-start justify-between">
+                                    <div>
+                                        <h1 className="text-2xl md:text-3xl font-black text-[#111827]">My Bookings</h1>
+                                        <p className="text-[#6B7280] mt-1">{bookings.length} booking{bookings.length !== 1 ? "s" : ""} found</p>
+                                    </div>
+                                    <button onClick={handleRefresh} disabled={refreshing}
+                                        className="p-2.5 rounded-xl bg-white border border-[#E5E7EB] text-[#6B7280] hover:text-[#5B4DFF] hover:border-[#5B4DFF]/30 transition-all disabled:opacity-50"
+                                        title="Refresh bookings">
+                                        <RefreshCw className={`w-4.5 h-4.5 w-[18px] h-[18px] ${refreshing ? 'animate-spin' : ''}`} />
+                                    </button>
                                 </div>
                                 <div className="space-y-3">
                                     {bookings.map((b: any, i) => (
