@@ -19,6 +19,7 @@ export default function UserDashboard() {
     const [activeTab, setActiveTab] = useState("home");
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const realtimeChannel = useRef<any>(null);
 
     // Booking state
     const [requestText, setRequestText] = useState("");
@@ -34,12 +35,12 @@ export default function UserDashboard() {
     const intentCache = useRef<{ [key: string]: any }>({});
 
     useEffect(() => {
-        let channel: any;
+        let isMounted = true;
 
         const init = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                router.push("/auth");
+            if (!session || !isMounted) {
+                if (!session) router.push("/auth");
                 return;
             }
             setUser(session.user);
@@ -49,14 +50,22 @@ export default function UserDashboard() {
             setLoading(false);
 
             // Supabase Realtime: subscribe to booking updates for this user
-            channel = supabase
-                .channel(`booking-updates-${session.user.id}`)
+            const channelName = `booking-updates-${session.user.id}`;
+
+            // Clean up existing channel first to avoid registration conflicts
+            if (realtimeChannel.current) {
+                supabase.removeChannel(realtimeChannel.current);
+            }
+
+            const channel = supabase
+                .channel(channelName)
                 .on('postgres_changes', {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'bookings',
                     filter: `user_id=eq.${session.user.id}`
                 }, (payload: any) => {
+                    if (!isMounted) return;
                     setBookings(prev => prev.map(b =>
                         b.id === payload.new.id ? { ...b, ...payload.new } : b
                     ));
@@ -67,6 +76,7 @@ export default function UserDashboard() {
                     table: 'bookings',
                     filter: `user_id=eq.${session.user.id}`
                 }, (payload: any) => {
+                    if (!isMounted) return;
                     setBookings(prev => [payload.new, ...prev]);
                 })
                 .on('postgres_changes', {
@@ -75,16 +85,21 @@ export default function UserDashboard() {
                     table: 'bookings',
                     filter: `user_id=eq.${session.user.id}`
                 }, (payload: any) => {
+                    if (!isMounted) return;
                     setBookings(prev => prev.filter(b => b.id !== payload.old.id));
                 })
                 .subscribe();
+
+            realtimeChannel.current = channel;
         };
 
         init();
 
         return () => {
-            if (channel) {
-                supabase.removeChannel(channel);
+            isMounted = false;
+            if (realtimeChannel.current) {
+                supabase.removeChannel(realtimeChannel.current);
+                realtimeChannel.current = null;
             }
         };
     }, [router]);
