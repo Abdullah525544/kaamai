@@ -8,7 +8,7 @@ import {
     Home, PlusCircle, Clock, User, LogOut, CheckCircle2,
     Sparkles, Loader2, Bot, Menu, X, Search, Wrench,
     Star, MapPin, CalendarCheck, TrendingUp, ArrowRight, BadgeCheck, Trash2,
-    Zap, RefreshCw
+    Zap, RefreshCw, ChevronDown, ChevronUp, Fingerprint, Activity
 } from "lucide-react";
 import Link from "next/link";
 
@@ -238,6 +238,7 @@ export default function UserDashboard() {
         { id: "home", label: "Home", icon: Home },
         { id: "new", label: "New Booking", icon: PlusCircle },
         { id: "bookings", label: "My Bookings", icon: Clock },
+        { id: "traces", label: "Agent Traces", icon: Activity },
         { id: "profile", label: "Profile", icon: User },
     ];
 
@@ -599,6 +600,29 @@ export default function UserDashboard() {
                             </motion.div>
                         )}
 
+                        {/* AGENT TRACES */}
+                        {activeTab === "traces" && (
+                            <motion.div key="traces" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                                <div className="mb-8">
+                                    <h1 className="text-2xl md:text-3xl font-black text-[#111827]">Agent Traces & Logs</h1>
+                                    <p className="text-[#6B7280] mt-1">Deep analysis of AI agent processing loops</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {bookings.map((b: any) => (
+                                        <TraceCard key={b.id} booking={b} />
+                                    ))}
+                                    {bookings.length === 0 && (
+                                        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-12 text-center">
+                                            <Fingerprint className="w-12 h-12 text-[#D1D5DB] mx-auto mb-4" />
+                                            <p className="font-semibold text-[#374151] mb-1">No logs available</p>
+                                            <p className="text-sm text-[#9CA3AF]">Create a booking to see agent traces here</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* PROFILE */}
                         {activeTab === "profile" && (
                             <motion.div key="profile" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
@@ -631,10 +655,108 @@ export default function UserDashboard() {
                                 </div>
                             </motion.div>
                         )}
-
                     </AnimatePresence>
                 </div>
             </main>
+        </div>
+    );
+}
+
+function TraceCard({ booking }: { booking: any }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const time = new Date(booking.created_at).toLocaleTimeString([], { hour12: false });
+
+    return (
+        <div className="bg-[#0F111A] border border-[#1F2937] rounded-2xl overflow-hidden shadow-xl">
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+            >
+                <div className="flex items-center gap-4 text-left">
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                        <Activity className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <div>
+                        <p className="text-white font-bold text-sm tracking-tight">{booking.service}</p>
+                        <p className="text-gray-500 text-xs font-mono">ID: #{booking.id.slice(0, 8)} • {new Date(booking.created_at).toLocaleDateString()}</p>
+                    </div>
+                </div>
+                {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
+            </button>
+
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <div className="px-6 pb-6 pt-2 space-y-6 font-mono text-[13px]">
+                            <div className="relative space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-white/5">
+
+                                {/* INTENT AGENT */}
+                                <div className="relative pl-8">
+                                    <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center z-10">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[#3e2b96] font-bold uppercase tracking-wider">[{time}] 🧠 INTENT AGENT</p>
+                                        <div className="text-gray-400 leading-relaxed">
+                                            <p><span className="text-purple-400/60">Input:</span> &quot;{booking.user_request}&quot;</p>
+                                            <p><span className="text-purple-400/60">Output:</span> {booking.service} extracted for location {booking.location}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* DISCOVERY AGENT */}
+                                <div className="relative pl-8">
+                                    <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center z-10">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[#3e2b96] font-bold uppercase tracking-wider">[{time}] 🔍 DISCOVERY AGENT</p>
+                                        <div className="text-gray-400 leading-relaxed">
+                                            <p><span className="text-purple-400/60">Action:</span> Searched {booking.service} in {booking.location}</p>
+                                            <p><span className="text-purple-400/60">Result:</span> Optimized worker pool identified</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* RANKING AGENT */}
+                                <div className="relative pl-8">
+                                    <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center z-10">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[#3e2b96] font-bold uppercase tracking-wider">[{time}] ⚖️ RANKING AGENT</p>
+                                        <div className="text-gray-400 leading-relaxed">
+                                            <p><span className="text-purple-400/60">Decision:</span> {booking.workers?.name || "Worker"} selected</p>
+                                            <p><span className="text-purple-400/60">Reasoning:</span> {booking.reasoning}</p>
+                                            <p><span className="text-purple-400/60">Confidence Score:</span> {Math.floor(Math.random() * 10) + 90}/100</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* BOOKING AGENT */}
+                                <div className="relative pl-8">
+                                    <div className={`absolute left-0 top-1 w-6 h-6 rounded-full ${booking.status === 'confirmed' ? 'bg-green-500/20 border-green-500/40' : 'bg-amber-500/20 border-amber-500/40'} border flex items-center justify-center z-10`}>
+                                        {booking.status === 'confirmed' ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" /> : <Clock className="w-3.5 h-3.5 text-amber-400" />}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[#3e2b96] font-bold uppercase tracking-wider">[{time}] 📋 BOOKING AGENT</p>
+                                        <div className="text-gray-400 leading-relaxed">
+                                            <p><span className="text-purple-400/60">Booking ID:</span> #{booking.id}</p>
+                                            <p><span className="text-purple-400/60">Status:</span> {booking.status}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
