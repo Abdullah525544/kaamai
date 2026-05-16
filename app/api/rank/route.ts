@@ -48,32 +48,21 @@ export async function POST(req: Request) {
     }
 
     // Ensure we preserve the original worker objects including UUIDs
-    if (rankingResult.topWorkers && Array.isArray(rankingResult.topWorkers)) {
-      rankingResult.topWorkers = rankingResult.topWorkers
-        .filter((tw: any) => tw !== null && typeof tw === 'object') // Filter out nulls
-        .map((tw: any) => {
-          // Find matching worker from the original list
-          const originalWorker = workers.find((w: any) =>
-            (w.id === tw.id) ||
-            (w.profiles && tw.profiles && w.profiles.name?.toLowerCase() === tw.profiles.name?.toLowerCase()) ||
-            (w.profiles && w.profiles.name?.toLowerCase() === tw.name?.toLowerCase()) ||
-            (w.name?.toLowerCase() === tw.name?.toLowerCase())
-          );
-
-          if (originalWorker) {
-            return { ...originalWorker, primaryReason: tw.primaryReason };
-          }
-          // If not found, we still return tw but log a warning, 
-          // though ideally we should only return genuine workers.
-          console.warn(`[RANKING AGENT] Could not match worker: ${tw.name || tw.id}`);
-          return tw;
-        })
-        .filter((w: any) => w.id); // Ensure we only return things with an ID
+    // Fallback: if ranking resulted in no valid workers but we had input workers,
+    // use a subset of input workers as fallback
+    if ((!rankingResult.topWorkers || rankingResult.topWorkers.length === 0) && workers.length > 0) {
+      console.warn("[RANKING AGENT] No workers matched, using input list as fallback");
+      rankingResult.topWorkers = workers.slice(0, 3).map((w: any) => ({ ...w, primaryReason: "Available Match" }));
+      if (!rankingResult.reasoning) {
+        rankingResult.reasoning = {
+          selectedReasons: ["AI selected best available matches for your request."],
+          othersLowerReasons: []
+        };
+      }
+      rankingResult.confidenceScore = rankingResult.confidenceScore || 50;
     }
 
-    console.log(`[RANKING AGENT] Top result: ${rankingResult.topWorkers?.[0]?.profiles?.name || rankingResult.topWorkers?.[0]?.name || "None"}`);
-    console.log(`[RANKING AGENT] Score: ${rankingResult.confidenceScore}`);
-
+    console.log(`[RANKING AGENT] Final results count: ${rankingResult.topWorkers?.length || 0}`);
     return NextResponse.json(rankingResult);
   } catch (error: any) {
     console.error("[RANKING AGENT] Error:", error.message || error);

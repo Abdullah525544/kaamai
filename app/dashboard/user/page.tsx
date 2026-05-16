@@ -233,9 +233,9 @@ export default function UserDashboard() {
             console.log("[handleSearch] Search process completed successfully.");
 
         } catch (e: any) {
-            console.error(e);
+            console.error("[handleSearch] Error in pipeline:", e);
             setPipelineError(e.message || "Kuch masla hua hai. Dobara koshish karein.");
-            setBookingSteps(0);
+            // Don't set booking steps to 0, keep it visible so user sees the error
         } finally {
             setProcessing(false);
         }
